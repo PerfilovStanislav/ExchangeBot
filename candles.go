@@ -101,7 +101,7 @@ func (candleData *CandleData) restore() bool {
 	return true
 }
 
-func (candleData *CandleData) getFigi() string {
+func (candleData *CandleData) getPairName() string {
 	figi, _ := getFigiAndInterval(candleData.FigiInterval)
 	return figi
 }

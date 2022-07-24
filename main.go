@@ -20,30 +20,28 @@ import (
 	"time"
 )
 
-var apiHandler ApiInterface
 var scheduler *gocron.Scheduler
 
-func main() {
-	scheduler = gocron.NewScheduler(time.UTC)
-	scheduler.StartAsync()
+//func main() {
+//	_ = godotenv.Load()
+//	exmo.init()
+//
+//	fmt.Println(exmo.isOrderOpened())
+//
+//	//order := exmo.apiBuy("ALGO_USDT", 2.04)
+//	//fmt.Printf("%+v", order)
+//}
 
+func init() {
 	_ = godotenv.Load()
 	rand.Seed(time.Now().UnixNano())
+	exmo.init()
+}
 
-	//c := make(chan os.Signal, 1)
-	//signal.Notify(c, os.Interrupt, os.Kill)
-	//go func() {
-	//	for sig := range c {
-	//		log.Printf("Stopped %+v", sig)
-	//		pprof.StopCPUProfile()
-	//		os.Exit(1)
-	//	}
-	//}()
-
-	envParams := os.Getenv("params")
-
+func main() {
 	CandleStorage = make(map[string]CandleData)
 
+	envParams := os.Getenv("params")
 	if envParams != "" {
 		params := strings.Split(envParams, "}{")
 		params[0] = params[0][1:]
@@ -52,35 +50,17 @@ func main() {
 		for _, param := range params {
 			operation := getOperationParameter(param)
 			candleData := getCandleData(operation.FigiInterval)
-			apiHandler = getApiHandler(operation.FigiInterval)
-			apiHandler.downloadCandles(candleData, operation)
+			exmo.downloadCandles(candleData, operation)
 			operations = append(operations, operation)
 		}
-		apiHandler.listenCandles(operations)
+		exmo.listenCandles(operations)
 	}
 
-	////tinkoff.Open("BBG000B9XRY4", 2)
-	////tinkoff.Close("BBG000B9XRY4", 2)
-	////ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
-	////defer cancel()
-	////p, _ := tinkoff.ApiClient.Portfolio(ctx, tinkoff.Account.ID)
-	////fmt.Printf("%+v", p)
-	//
-	////listenCandles(tinkoff)
-	//
+	scheduler = gocron.NewScheduler(time.UTC)
+	scheduler.StartAsync()
+
 	select {}
 
-}
-
-func getApiHandler(figi string) ApiInterface {
-	handler := func(figi string) ApiInterface {
-		if strings.Contains(figi, "_") {
-			return &exmo
-		}
-		return &tinkoff
-	}(figi)
-	handler.init()
-	return handler
 }
 
 func getOperationParameter(str string) OperationParameter {
@@ -187,4 +167,13 @@ func parallel(start, stop int, fn func(<-chan int)) {
 
 func figiInterval(figi string, interval tf.CandleInterval) string {
 	return fmt.Sprintf("%s_%s", figi, interval)
+}
+
+func f2s(x float64) string {
+	return fmt.Sprintf("%v", x)
+}
+
+func getCurrencies(pair string) (Currency, Currency) {
+	split := strings.Split(pair, "_")
+	return Currency(split[0]), Currency(split[1])
 }

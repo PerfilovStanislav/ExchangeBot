@@ -12,38 +12,19 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"strconv"
 	"time"
 )
 
-type Exmo struct {
-	Key    string
-	Secret string
-}
-
 var exmo Exmo
 
-type ExmoCandleHistory struct {
-	S       string `json:"s"`
-	Candles []struct {
-		T int64   `json:"t"`
-		O float64 `json:"o"`
-		C float64 `json:"c"`
-		H float64 `json:"h"`
-		L float64 `json:"l"`
-	} `json:"candles"`
-}
-
-type OrderResponse struct {
-	Result   bool   `json:"result"`
-	Error    string `json:"error"`
-	OrderID  int    `json:"order_id"`
-	ClientID int    `json:"client_id"`
-}
+type ApiParams map[string]string
 
 func (exmo *Exmo) init() {
 	exmo.Key = os.Getenv("exmo.key")
 	exmo.Secret = os.Getenv("exmo.secret")
+	exmo.apiGetUserInfo()
 }
 
 func (exmo *Exmo) downloadCandles(candleData *CandleData, param OperationParameter) {
@@ -58,7 +39,7 @@ func (exmo *Exmo) downloadCandles(candleData *CandleData, param OperationParamet
 		from := startDate
 		to := startDate + 125*3600
 
-		candleHistory := exmo.getCandles(figi, "60", from, to)
+		candleHistory := exmo.apiGetCandles(figi, "60", from, to)
 
 		startDate = to
 
@@ -78,22 +59,28 @@ func (exmo *Exmo) downloadCandles(candleData *CandleData, param OperationParamet
 }
 
 func (exmo *Exmo) listenCandles(operations []OperationParameter) {
-	_, _ = scheduler.Cron("0 * * * *").Do(exmo.listenCandleParams, operations)
+	_, _ = scheduler.Cron("0 * * * *").Do(exmo.checkOperation, operations)
 }
 
-func (candleHistory ExmoCandleHistory) isEmpty() bool {
-	return candleHistory.S != ""
+func (exmo *Exmo) checkOperation(operations []OperationParameter) {
+	if exmo.isOrderOpened() {
+		exmo.checkForClose()
+	} else {
+		exmo.checkForOpen(operations)
+	}
 }
-func (exmo *Exmo) listenCandleParams(operations []OperationParameter) {
-	dt := ((time.Now().Unix() / 60) - 1) * 60
 
+func (exmo *Exmo) checkForOpen(operations []OperationParameter) {
+	exmo.apiGetUserInfo()
+
+	dt := ((time.Now().Unix() / 3600) - 1) * 3600
 	resolution := "60"
 
 _operations:
 	for _, operation := range operations {
-		var candleHistory ExmoCandleHistory
+		var candleHistory ExmoCandleHistoryResponse
 		for i := 1; i <= 10; i++ {
-			candleHistory = exmo.getCandles(operation.getFigi(), resolution, dt, dt)
+			candleHistory = exmo.apiGetCandles(operation.getPairName(), resolution, dt, dt)
 			if candleHistory.isEmpty() {
 				fmt.Printf("EMPTY i:%2d dt:%d %+v \n", i, dt, operation)
 				if i == 10 {
@@ -106,12 +93,10 @@ _operations:
 		}
 
 		candleData := operation.getCandleData()
-
-		for _, c := range candleHistory.Candles {
-			candleData.upsertCandle(Candle{
-				c.O, c.C, c.H, c.L, time.Unix(c.T/1000, 0),
-			})
-		}
+		c := candleHistory.Candles[0]
+		candleData.upsertCandle(Candle{
+			c.O, c.C, c.H, c.L, time.Unix(c.T/1000, 0),
+		})
 
 		index := candleData.index()
 		v1 := candleData.fillIndicator(index, operation.Ind1)
@@ -119,14 +104,46 @@ _operations:
 		candleData.save()
 
 		if v1*10000/v2 >= float64(10000+operation.Op) {
-			fmt.Printf("Open order! %+v \n", operation)
+			pair := operation.getPairName()
+			order := exmo.apiBuy(pair, exmo.calculateQuantity(pair))
+			if order.Error != "" {
+				exmo.OpenedOrder = operation
+				fmt.Println("SUCCESS order open->")
+			} else {
+				fmt.Println("ERROR order open->")
+			}
+			fmt.Printf("Operation:%+v\nOrder:%+v\n\n", operation, order)
 		} else {
-			fmt.Println("no")
+			fmt.Println(time.Now().Format(time.RFC850))
 		}
 	}
 }
 
-func (exmo *Exmo) getCandles(symbol, resolution string, from, to int64) ExmoCandleHistory {
+func (exmo *Exmo) calculateQuantity(pair string) float64 {
+	_, rightCurrency := getCurrencies(pair)
+	money := exmo.getCurrencyBalance(rightCurrency)
+
+	return money / float64(exmo.apiGetCurrentPrice().getPrice(pair)) * 0.98
+}
+
+func (exmo *Exmo) checkForClose() {
+	operation := exmo.OpenedOrder
+	exmo.apiGetUserInfo()
+	pair := operation.getPairName()
+	leftCurrency, _ := getCurrencies(pair)
+	quantity := exmo.getCurrencyBalance(leftCurrency)
+	order := exmo.apiClose(pair, quantity)
+
+	if order.Error != "" {
+		exmo.OpenedOrder = operation
+		fmt.Println("SUCCESS order close->")
+	} else {
+		fmt.Println("ERROR order close->")
+	}
+	fmt.Printf("Operation:%+v\nOrder:%+v\n\n", operation, order)
+}
+
+func (exmo *Exmo) apiGetCandles(symbol, resolution string, from, to int64) ExmoCandleHistoryResponse {
 	params := ApiParams{
 		"symbol":     symbol,
 		"resolution": resolution,
@@ -136,7 +153,7 @@ func (exmo *Exmo) getCandles(symbol, resolution string, from, to int64) ExmoCand
 
 	bts, err := exmo.apiQuery("candles_history", params)
 
-	var candleHistory ExmoCandleHistory
+	var candleHistory ExmoCandleHistoryResponse
 	err = json.Unmarshal(bts, &candleHistory)
 
 	if err != nil {
@@ -147,11 +164,7 @@ func (exmo *Exmo) getCandles(symbol, resolution string, from, to int64) ExmoCand
 	return candleHistory
 }
 
-func f2s(x float64) string {
-	return fmt.Sprintf("%v", x)
-}
-
-func (exmo *Exmo) buy(symbol string, quantity float64) OrderResponse {
+func (exmo *Exmo) apiBuy(symbol string, quantity float64) OrderResponse {
 	params := ApiParams{
 		"pair":     symbol,
 		"quantity": f2s(quantity),
@@ -161,18 +174,89 @@ func (exmo *Exmo) buy(symbol string, quantity float64) OrderResponse {
 
 	bts, err := exmo.apiQuery("order_create", params)
 
-	var orderResponse OrderResponse
-	err = json.Unmarshal(bts, &orderResponse)
+	var response OrderResponse
+	err = json.Unmarshal(bts, &response)
 
 	if err != nil {
 		fmt.Sprintln(err)
 		log.Fatalln(err)
 	}
 
-	return orderResponse
+	return response
 }
 
-type ApiParams map[string]string
+func (exmo *Exmo) apiClose(symbol string, quantity float64) OrderResponse {
+	params := ApiParams{
+		"pair":     symbol,
+		"quantity": f2s(quantity),
+		"price":    "0",
+		"type":     "market_sell",
+	}
+
+	bts, err := exmo.apiQuery("order_create", params)
+
+	var response OrderResponse
+	err = json.Unmarshal(bts, &response)
+
+	if err != nil {
+		fmt.Sprintln(err)
+		log.Fatalln(err)
+	}
+
+	return response
+}
+
+func (exmo *Exmo) apiGetCurrentPrice() CurrentPriceResponse {
+	params := ApiParams{}
+
+	bts, err := exmo.apiQuery("ticker", params)
+
+	var response CurrentPriceResponse
+	err = json.Unmarshal(bts, &response)
+
+	if err != nil {
+		fmt.Sprintln(err)
+		log.Fatalln(err)
+	}
+
+	return response
+}
+
+func (exmo *Exmo) apiGetUserInfo() UserInfoResponse {
+	params := ApiParams{}
+
+	bts, err := exmo.apiQuery("user_info", params)
+
+	var response UserInfoResponse
+	err = json.Unmarshal(bts, &response)
+
+	if err != nil {
+		fmt.Sprintln(err)
+		log.Fatalln(err)
+	}
+
+	exmo.CurrencyBalance = response.Balances
+
+	return response
+}
+
+func (exmo *Exmo) getCurrencyBalance(symbol Currency) float64 {
+	r := reflect.ValueOf(exmo.CurrencyBalance)
+	f := reflect.Indirect(r).FieldByName(string(symbol))
+	return f.Float()
+}
+
+func (exmo *Exmo) getPrevCurrencyBalance(symbol Currency) float64 {
+	r := reflect.ValueOf(exmo.PrevCurrencyBalance)
+	f := reflect.Indirect(r).FieldByName(string(symbol))
+	return f.Float()
+}
+
+func (exmo *Exmo) getCurrentPrice(symbol Currency) float64 {
+	r := reflect.ValueOf(exmo.PrevCurrencyBalance)
+	f := reflect.Indirect(r).FieldByName(string(symbol))
+	return f.Float()
+}
 
 func (exmo *Exmo) apiQuery(method string, params ApiParams) ([]byte, error) {
 	postParams := url.Values{}
@@ -204,6 +288,10 @@ func (exmo *Exmo) apiQuery(method string, params ApiParams) ([]byte, error) {
 	}
 
 	return ioutil.ReadAll(resp.Body)
+}
+
+func (exmo *Exmo) isOrderOpened() bool {
+	return exmo.OpenedOrder.isEmpty() == false
 }
 
 func nonce() string {
