@@ -22,16 +22,6 @@ import (
 
 var scheduler *gocron.Scheduler
 
-//func main() {
-//	_ = godotenv.Load()
-//	exmo.init()
-//
-//	fmt.Println(exmo.isOrderOpened())
-//
-//	//order := exmo.apiBuy("ALGO_USDT", 2.04)
-//	//fmt.Printf("%+v", order)
-//}
-
 func init() {
 	_ = godotenv.Load()
 	rand.Seed(time.Now().UnixNano())
@@ -47,6 +37,10 @@ func main() {
 		params[0] = params[0][1:]
 		params[len(params)-1] = params[len(params)-1][:len(params[len(params)-1])-1]
 		var operations []OperationParameter
+
+		scheduler = gocron.NewScheduler(time.UTC)
+		scheduler.StartAsync()
+
 		for _, param := range params {
 			operation := getOperationParameter(param)
 			candleData := getCandleData(operation.FigiInterval)
@@ -55,9 +49,6 @@ func main() {
 		}
 		exmo.listenCandles(operations)
 	}
-
-	scheduler = gocron.NewScheduler(time.UTC)
-	scheduler.StartAsync()
 
 	select {}
 

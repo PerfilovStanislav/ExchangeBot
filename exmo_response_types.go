@@ -107,6 +107,9 @@ type UserInfoResponse struct {
 
 type CurrentPriceResponse struct {
 	ALGO_USDT CurrentPrice `json:"ALGO_USDT"`
+	CRON_USDT CurrentPrice `json:"CRON_USDT"`
+	IQN_USDT  CurrentPrice `json:"IQN_USDT"`
+	QTUM_USD  CurrentPrice `json:"QTUM_USD"`
 }
 
 type Price float64

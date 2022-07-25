@@ -59,7 +59,7 @@ func (exmo *Exmo) downloadCandles(candleData *CandleData, param OperationParamet
 }
 
 func (exmo *Exmo) listenCandles(operations []OperationParameter) {
-	_, _ = scheduler.Cron("0 * * * *").Do(exmo.checkOperation, operations)
+	_, _ = scheduler.CronWithSeconds(os.Getenv("cron")).Do(exmo.checkOperation, operations)
 }
 
 func (exmo *Exmo) checkOperation(operations []OperationParameter) {
@@ -71,32 +71,12 @@ func (exmo *Exmo) checkOperation(operations []OperationParameter) {
 }
 
 func (exmo *Exmo) checkForOpen(operations []OperationParameter) {
+	exmo.downloadNewCandles(operations)
+
 	exmo.apiGetUserInfo()
 
-	dt := ((time.Now().Unix() / 3600) - 1) * 3600
-	resolution := "60"
-
-_operations:
 	for _, operation := range operations {
-		var candleHistory ExmoCandleHistoryResponse
-		for i := 1; i <= 10; i++ {
-			candleHistory = exmo.apiGetCandles(operation.getPairName(), resolution, dt, dt)
-			if candleHistory.isEmpty() {
-				fmt.Printf("EMPTY i:%2d dt:%d %+v \n", i, dt, operation)
-				if i == 10 {
-					continue _operations
-				}
-				time.Sleep(time.Millisecond * 250)
-			} else {
-				break
-			}
-		}
-
 		candleData := operation.getCandleData()
-		c := candleHistory.Candles[0]
-		candleData.upsertCandle(Candle{
-			c.O, c.C, c.H, c.L, time.Unix(c.T/1000, 0),
-		})
 
 		index := candleData.index()
 		v1 := candleData.fillIndicator(index, operation.Ind1)
@@ -114,9 +94,45 @@ _operations:
 			}
 			fmt.Printf("Operation:%+v\nOrder:%+v\n\n", operation, order)
 		} else {
-			fmt.Println(time.Now().Format(time.RFC850))
+			fmt.Printf("time:%s operation: %+v v1:%f v2:%f\n", time.Now().Format(time.RFC850), operation, v1, v2)
 		}
 	}
+}
+
+func (exmo *Exmo) downloadNewCandles(operations []OperationParameter) {
+	resolution := "60"
+	dt := ((time.Now().Unix() / 3600) - 1) * 3600
+
+	parallel(0, len(operations), func(ys <-chan int) {
+		for y := range ys {
+			exmo.downloadNewCandle(resolution, dt, operations[y])
+		}
+	})
+}
+
+func (exmo *Exmo) downloadNewCandle(resolution string, dt int64, operation OperationParameter) {
+	var candleHistory ExmoCandleHistoryResponse
+	for i := 1; i <= 10; i++ {
+		candleHistory = exmo.apiGetCandles(operation.getPairName(), resolution, dt, dt)
+		if !candleHistory.isEmpty() {
+			break
+		} else if i == 10 {
+			return // empty
+		} else {
+			time.Sleep(time.Millisecond * 250)
+		}
+	}
+
+	candleData := operation.getCandleData()
+	c := candleHistory.Candles[0]
+	candleData.upsertCandle(Candle{
+		c.O, c.C, c.H, c.L, time.Unix(c.T/1000, 0),
+	})
+
+	//index := candleData.index()
+	//candleData.fillIndicator(index, operation.Ind1)
+	//candleData.fillIndicator(index, operation.Ind2)
+	candleData.save()
 }
 
 func (exmo *Exmo) calculateQuantity(pair string) float64 {
@@ -135,7 +151,7 @@ func (exmo *Exmo) checkForClose() {
 	order := exmo.apiClose(pair, quantity)
 
 	if order.Error != "" {
-		exmo.OpenedOrder = operation
+		exmo.OpenedOrder = OperationParameter{}
 		fmt.Println("SUCCESS order close->")
 	} else {
 		fmt.Println("ERROR order close->")
