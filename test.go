@@ -44,3 +44,11 @@ func (exmo *Exmo) test() {
 	}
 	fmt.Println(response)
 }
+
+func calc(rows [][]string, i int64) float64 {
+	sum := 0.0
+	for _, row := range rows {
+		sum += s2f(row[i])
+	}
+	return sum
+}

@@ -115,8 +115,10 @@ func (exmo *Exmo) checkForOpen(operations []OperationParameter) {
 				} else {
 					color.HiRed("ERROR set stopLoss %+v", stopLossOrder)
 				}
+				playSound("new_order_was_opened.mp3")
 			} else {
 				color.HiRed("ERROR order open->")
+				playSound("error_new_order_opening.mp3")
 			}
 			fmt.Printf("OpenedOrder:%+v\nOrder:%+v\n\n", exmo.OpenedOrder, buyOrder)
 		} else {
@@ -165,29 +167,26 @@ func (exmo *Exmo) downloadNewCandle(resolution string, dt int64, operation Opera
 	candleData.save()
 }
 
-func calc(rows [][]string, i int64) float64 {
-	sum := 0.0
-	for _, row := range rows {
-		sum += s2f(row[i])
-	}
-	return sum
-}
-
 func (exmo *Exmo) checkForClose() {
 	openedOrder := exmo.OpenedOrder
-	o := openedOrder.getCandleData().lastCandleValue("O")
-	if o*10000/openedOrder.OpenedPrice >= float64(10000+openedOrder.Cl) {
+	pair := openedOrder.getPairName()
+	o := exmo.getCurrentCandle(pair).O
+	percentsForClose := o * 10000 / openedOrder.OpenedPrice / float64(10000+openedOrder.Cl)
+	fmt.Printf("Percents to close: %f", percentsForClose)
+	if percentsForClose >= 1.0 {
 		exmo.apiGetUserInfo()
-		pair := openedOrder.getPairName()
 		quantity := exmo.getCurrencyBalance(getLeftCurrency(pair))
 		order := exmo.apiClose(pair, quantity)
 
 		if order.isSuccess() {
+			exmo.apiCancelStopLoss(exmo.StopLossOrderId)
 			exmo.OpenedOrder = OpenedOrder{}
 			exmo.StopLossOrderId = 0
 			color.HiGreen("SUCCESS order close->")
+			playSound("order_was_closed.mp3")
 		} else {
 			color.HiRed("ERROR order close->")
+			playSound("error_order_closing.mp3")
 		}
 		fmt.Printf("Operation:%+v\nOrder:%+v\n\n", openedOrder, order)
 	}
