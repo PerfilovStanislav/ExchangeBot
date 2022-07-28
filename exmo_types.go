@@ -3,9 +3,10 @@ package main
 type Exmo struct {
 	Key              string
 	Secret           string
+	AvailableDeposit float64
 	Balance          CurrencyBalanceResponse
 	OpenedOrder      OpenedOrder
-	AvailableDeposit float64
+	StopLossOrderId  int64
 }
 
 type OpenedOrder struct {

@@ -15,11 +15,12 @@ type TestResponse struct {
 
 func (exmo *Exmo) test() {
 	params := ApiParams{
-		"pair":  "ETC_USD",
-		"limit": "100",
+		//"pair":   "ALGO_USDT",
+		"limit":  "100",
+		"offset": "0",
 	}
 
-	bts, err := exmo.apiQuery("order_book", params)
+	bts, err := exmo.apiQuery("user_cancelled_orders", params)
 
 	var response TestResponse
 	err = json.Unmarshal(bts, &response)

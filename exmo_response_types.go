@@ -28,6 +28,16 @@ func (response OrderResponse) isSuccess() bool {
 	return response.Error == ""
 }
 
+type StopOrderResponse struct {
+	ClientID         int    `json:"client_id"`
+	ParentOrderID    int64  `json:"parent_order_id"`
+	ParentOrderIDStr string `json:"parent_order_id_str"`
+}
+
+func (response StopOrderResponse) isSuccess() bool {
+	return response.ParentOrderID > 0
+}
+
 type CurrencyBalanceResponse struct {
 	ALGO Price `json:"ALGO,string"`
 	CRON Price `json:"CRON,string"`
@@ -102,7 +112,7 @@ type UserInfoResponse struct {
 	UID        int                     `json:"uid"`
 	ServerDate int                     `json:"server_date"`
 	Balances   CurrencyBalanceResponse `json:"balances"`
-	Reserved   CurrencyBalanceResponse `json:"reserved"`
+	//Reserved   CurrencyBalanceResponse `json:"reserved"`
 }
 
 type CurrentPriceResponse struct {

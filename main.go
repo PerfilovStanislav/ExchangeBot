@@ -4,10 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
-	tf "github.com/TinkoffCreditSystems/invest-openapi-go-sdk"
 	"github.com/go-co-op/gocron"
-	_ "github.com/jackc/pgx"
-	_ "github.com/jackc/pgx/stdlib"
 	"github.com/joho/godotenv"
 	"io/ioutil"
 	"log"
@@ -30,6 +27,8 @@ func init() {
 
 func main() {
 	CandleStorage = make(map[string]CandleData)
+
+	//exmo.test()
 
 	envParams := os.Getenv("params")
 	if envParams != "" {
@@ -88,9 +87,9 @@ func toInt(str string) int {
 	return i
 }
 
-func getFigiAndInterval(str string) (string, tf.CandleInterval) {
+func getFigiAndInterval(str string) (string, string) {
 	param := strings.Split(str, ".")
-	return param[0], tf.CandleInterval(param[1])
+	return param[0], "hour"
 }
 
 func EncodeToBytes(p interface{}) []byte {
@@ -155,10 +154,6 @@ func parallel(start, stop int, fn func(<-chan int)) {
 	wg.Wait()
 }
 
-func figiInterval(figi string, interval tf.CandleInterval) string {
-	return fmt.Sprintf("%s_%s", figi, interval)
-}
-
 func f2s(x float64) string {
 	return fmt.Sprintf("%v", x)
 }
@@ -166,6 +161,10 @@ func f2s(x float64) string {
 func s2f(s string) float64 {
 	f, _ := strconv.ParseFloat(s, 64)
 	return f
+}
+
+func i2s(i int64) string {
+	return strconv.FormatInt(i, 10)
 }
 
 func getCurrencies(pair string) (Currency, Currency) {
@@ -181,4 +180,26 @@ func getLeftCurrency(pair string) Currency {
 func getRightCurrency(pair string) Currency {
 	_, currency := getCurrencies(pair)
 	return currency
+}
+
+func getUniqueOperations(operations []OperationParameter) []OperationParameter {
+	var uniqueOperations []OperationParameter
+	var symbols []string
+	for _, operation := range operations {
+		pair := operation.getPairName()
+		if sliceIndex(symbols, pair) == -1 {
+			symbols = append(symbols, pair)
+			uniqueOperations = append(uniqueOperations, operation)
+		}
+	}
+	return uniqueOperations
+}
+
+func sliceIndex[E comparable](s []E, v E) int {
+	for i, vs := range s {
+		if v == vs {
+			return i
+		}
+	}
+	return -1
 }

@@ -11,6 +11,7 @@ require (
 
 require (
 	github.com/cockroachdb/apd v1.1.0 // indirect
+	github.com/faiface/beep v1.1.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/gofrs/uuid v4.2.0+incompatible // indirect
 	github.com/gorilla/websocket v1.4.1 // indirect
