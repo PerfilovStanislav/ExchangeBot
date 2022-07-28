@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
-	tf "github.com/TinkoffCreditSystems/invest-openapi-go-sdk"
 	_ "github.com/jackc/pgx"
 	_ "github.com/jackc/pgx/stdlib"
 	"io/ioutil"
@@ -106,10 +105,6 @@ func (candleData *CandleData) getPairName() string {
 	return figi
 }
 
-func (candleData *CandleData) getFigiAndInterval() (string, tf.CandleInterval) {
-	return getFigiAndInterval(candleData.FigiInterval)
-}
-
 func (candleData *CandleData) backup() {
 	dataOut := EncodeToBytes(candleData)
 	_ = ioutil.WriteFile(fmt.Sprintf("candles_%s.dat", candleData.FigiInterval), dataOut, 0644)
@@ -133,6 +128,10 @@ func (candleData *CandleData) index() int {
 
 func (candleData *CandleData) lastTime() time.Time {
 	return candleData.Time[candleData.index()]
+}
+
+func (candleData *CandleData) lastCandleValue(barType BarType) float64 {
+	return candleData.Candles[barType][candleData.index()]
 }
 
 func (candleData *CandleData) upsertCandle(c Candle) bool {

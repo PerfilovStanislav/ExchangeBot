@@ -1,15 +1,45 @@
 package main
 
 import (
-	_ "github.com/jackc/pgx"
-	_ "github.com/jackc/pgx/stdlib"
-	//_ "github.com/lib/pq"
+	"encoding/json"
+	"fmt"
+	"log"
 )
 
-func (candleData *CandleData) getIndicatorValue(indicator IndicatorParameter) []float64 {
-	return candleData.Indicators[indicator.IndicatorType][indicator.Coef][indicator.BarType]
+type TestResponse struct {
+	ETC_USD struct {
+		Ask [][]string `json:"ask"`
+		Bid [][]string `json:"bid"`
+	} `json:"ETC_USD"`
 }
 
-func (candleData *CandleData) getIndicatorRatio(operation OperationParameter, index int) float64 {
-	return candleData.getIndicatorValue(operation.Ind1)[index] / candleData.getIndicatorValue(operation.Ind2)[index]
+func (exmo *Exmo) test() {
+	params := ApiParams{
+		"pair":  "ETC_USD",
+		"limit": "100",
+	}
+
+	bts, err := exmo.apiQuery("order_book", params)
+
+	var response TestResponse
+	err = json.Unmarshal(bts, &response)
+
+	bidPrice := calc(response.ETC_USD.Bid, 2)
+	bidAmount := calc(response.ETC_USD.Bid, 1)
+
+	askPrice := calc(response.ETC_USD.Ask, 2)
+	askAmount := calc(response.ETC_USD.Ask, 1)
+
+	bidAvg := bidPrice / bidAmount
+	askAvg := askPrice / askAmount
+
+	avg := askAvg / bidAvg
+
+	fmt.Println(bidPrice, bidAmount, askPrice, askAmount, bidAvg, askAvg, avg)
+
+	if err != nil {
+		fmt.Sprintln(err)
+		log.Fatalln(err)
+	}
+	fmt.Println(response)
 }

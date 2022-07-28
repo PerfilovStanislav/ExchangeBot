@@ -5,14 +5,16 @@ import (
 )
 
 type ExmoCandleHistoryResponse struct {
-	S       string `json:"s"`
-	Candles []struct {
-		T int64   `json:"t"`
-		O float64 `json:"o"`
-		C float64 `json:"c"`
-		H float64 `json:"h"`
-		L float64 `json:"l"`
-	} `json:"candles"`
+	S       string       `json:"s"`
+	Candles []ExmoCandle `json:"candles"`
+}
+
+type ExmoCandle struct {
+	T int64   `json:"t"`
+	O float64 `json:"o"`
+	C float64 `json:"c"`
+	H float64 `json:"h"`
+	L float64 `json:"l"`
 }
 
 type OrderResponse struct {
@@ -22,11 +24,18 @@ type OrderResponse struct {
 	ClientID int    `json:"client_id"`
 }
 
+func (response OrderResponse) isSuccess() bool {
+	return response.Error == ""
+}
+
 type CurrencyBalanceResponse struct {
 	ALGO Price `json:"ALGO,string"`
+	CRON Price `json:"CRON,string"`
 	EXM  Price `json:"EXM,string"`
+	IQN  Price `json:"IQN,string"`
 	USD  Price `json:"USD,string"`
 	USDT Price `json:"USDT,string"`
+	QTUM Price `json:"QTUM,string"`
 	RUB  Price `json:"RUB,string"`
 	//EUR    Price `json:"EUR,string"`
 	//GBP    Price `json:"GBP,string"`
@@ -64,14 +73,12 @@ type CurrencyBalanceResponse struct {
 	//DCR    Price `json:"DCR,string"`
 	//XTZ    Price `json:"XTZ,string"`
 	//VLX    Price `json:"VLX,string"`
-	//CRON   Price `json:"CRON,string"`
 	//ONT    Price `json:"ONT,string"`
 	//ONG    Price `json:"ONG,string"`
 	//ATOM   Price `json:"ATOM,string"`
 	//WXT    Price `json:"WXT,string"`
 	//CHZ    Price `json:"CHZ,string"`
 	//ONE    Price `json:"ONE,string"`
-	//IQN    Price `json:"IQN,string"`
 	//PRQ    Price `json:"PRQ,string"`
 	//HAI    Price `json:"HAI,string"`
 	//LINK   Price `json:"LINK,string"`
@@ -90,13 +97,6 @@ type CurrencyBalanceResponse struct {
 	//SOLO   Price `json:"SOLO,string"`
 	//NEAR   Price `json:"NEAR,string"`
 }
-
-//type UserInfoResponse struct {
-//	UID        int             `json:"uid"`
-//	ServerDate int             `json:"server_date"`
-//	Balances   CurrencyBalanceResponse `json:"balances"`
-//	Reserved   CurrencyBalanceResponse `json:"reserved"`
-//}
 
 type UserInfoResponse struct {
 	UID        int                     `json:"uid"`

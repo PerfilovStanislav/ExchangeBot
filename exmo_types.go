@@ -1,19 +1,24 @@
 package main
 
 type Exmo struct {
-	Key                 string
-	Secret              string
-	CurrencyBalance     CurrencyBalanceResponse
-	PrevCurrencyBalance CurrencyBalanceResponse
-	OpenedOrder         OperationParameter
+	Key              string
+	Secret           string
+	Balance          CurrencyBalanceResponse
+	OpenedOrder      OpenedOrder
+	AvailableDeposit float64
+}
+
+type OpenedOrder struct {
+	OperationParameter
+	OpenedPrice float64
 }
 
 func (candleHistory ExmoCandleHistoryResponse) isEmpty() bool {
 	return candleHistory.S != ""
 }
 
-func (param OperationParameter) isEmpty() bool {
-	return param.FigiInterval == ""
+func (order OpenedOrder) isEmpty() bool {
+	return order.OperationParameter.FigiInterval == ""
 }
 
 type Currency string

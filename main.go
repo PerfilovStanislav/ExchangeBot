@@ -43,10 +43,9 @@ func main() {
 
 		for _, param := range params {
 			operation := getOperationParameter(param)
-			candleData := getCandleData(operation.FigiInterval)
-			exmo.downloadCandles(candleData, operation)
 			operations = append(operations, operation)
 		}
+		exmo.asyncDownloadHistoryCandles(getUniqueOperations(operations))
 		exmo.listenCandles(operations)
 	}
 
@@ -164,7 +163,22 @@ func f2s(x float64) string {
 	return fmt.Sprintf("%v", x)
 }
 
+func s2f(s string) float64 {
+	f, _ := strconv.ParseFloat(s, 64)
+	return f
+}
+
 func getCurrencies(pair string) (Currency, Currency) {
 	split := strings.Split(pair, "_")
 	return Currency(split[0]), Currency(split[1])
+}
+
+func getLeftCurrency(pair string) Currency {
+	currency, _ := getCurrencies(pair)
+	return currency
+}
+
+func getRightCurrency(pair string) Currency {
+	_, currency := getCurrencies(pair)
+	return currency
 }
