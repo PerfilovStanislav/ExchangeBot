@@ -109,16 +109,17 @@ func (exmo *Exmo) checkForOpen(operations []OperationParameter) {
 				color.HiGreen("SUCCESS order open->")
 
 				// выставляем стоп лосс
-				stopLossOrder := exmo.apiSetStopLoss(pair, exmo.getCurrencyBalance(getLeftCurrency(pair)), candleOpenPrice*0.95)
+				quantity := exmo.getCurrencyBalance(getLeftCurrency(pair))
+				StopLossPrice := candleOpenPrice * 0.8
+				stopLossOrder := exmo.apiSetStopLoss(pair, quantity, StopLossPrice)
 				if stopLossOrder.isSuccess() {
 					exmo.StopLossOrderId = stopLossOrder.ParentOrderID
 				} else {
 					color.HiRed("ERROR set stopLoss %+v", stopLossOrder)
 				}
-				playSound("new_order_was_opened.mp3")
+				tgBot.newOrderOpened(pair, candleOpenPrice, quantity, StopLossPrice)
 			} else {
 				color.HiRed("ERROR order open->")
-				playSound("error_new_order_opening.mp3")
 			}
 			fmt.Printf("OpenedOrder:%+v\nOrder:%+v\n\n", exmo.OpenedOrder, buyOrder)
 		} else {
@@ -148,10 +149,10 @@ func (exmo *Exmo) downloadNewCandle(resolution string, dt int64, operation Opera
 		candleHistory = exmo.apiGetCandles(operation.getPairName(), resolution, dt, dt)
 		if !candleHistory.isEmpty() {
 			break
-		} else if i == 10 {
+		} else if i == 20 {
 			return // empty
 		} else {
-			time.Sleep(time.Millisecond * 250)
+			time.Sleep(time.Millisecond * 50)
 		}
 	}
 
@@ -183,10 +184,9 @@ func (exmo *Exmo) checkForClose() {
 			exmo.OpenedOrder = OpenedOrder{}
 			exmo.StopLossOrderId = 0
 			color.HiGreen("SUCCESS order close->")
-			playSound("order_was_closed.mp3")
+			tgBot.orderClosed(pair, o, quantity)
 		} else {
 			color.HiRed("ERROR order close->")
-			playSound("error_order_closing.mp3")
 		}
 		fmt.Printf("Operation:%+v\nOrder:%+v\n\n", openedOrder, order)
 	}
@@ -224,12 +224,12 @@ func (exmo *Exmo) apiBuy(pair string, money float64) OrderResponse {
 	return exmo.apiCreateOrder(params)
 }
 
-func (exmo *Exmo) apiSetStopLoss(pair string, coin float64, price float64) StopOrderResponse {
+func (exmo *Exmo) apiSetStopLoss(pair string, coins float64, price float64) StopOrderResponse {
 	const decimals = 100000000
 
 	params := ApiParams{
 		"pair":          pair,
-		"quantity":      f2s(coin),
+		"quantity":      f2s(coins),
 		"trigger_price": f2s(math.Round(price*decimals) / decimals),
 		"type":          "sell",
 	}

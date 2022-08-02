@@ -40,13 +40,8 @@ func (response StopOrderResponse) isSuccess() bool {
 
 type CurrencyBalanceResponse struct {
 	ALGO Price `json:"ALGO,string"`
-	CRON Price `json:"CRON,string"`
-	EXM  Price `json:"EXM,string"`
-	IQN  Price `json:"IQN,string"`
 	USD  Price `json:"USD,string"`
 	USDT Price `json:"USDT,string"`
-	QTUM Price `json:"QTUM,string"`
-	RUB  Price `json:"RUB,string"`
 	//EUR    Price `json:"EUR,string"`
 	//GBP    Price `json:"GBP,string"`
 	//PLN    Price `json:"PLN,string"`
@@ -117,9 +112,6 @@ type UserInfoResponse struct {
 
 type CurrentPriceResponse struct {
 	ALGO_USDT CurrentPrice `json:"ALGO_USDT"`
-	CRON_USDT CurrentPrice `json:"CRON_USDT"`
-	IQN_USDT  CurrentPrice `json:"IQN_USDT"`
-	QTUM_USD  CurrentPrice `json:"QTUM_USD"`
 }
 
 type Price float64

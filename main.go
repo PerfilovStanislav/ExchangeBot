@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
-	"github.com/faiface/beep"
-	"github.com/faiface/beep/mp3"
-	"github.com/faiface/beep/speaker"
 	"github.com/go-co-op/gocron"
 	"github.com/joho/godotenv"
 	"io/ioutil"
@@ -26,6 +23,7 @@ func init() {
 	_ = godotenv.Load()
 	rand.Seed(time.Now().UnixNano())
 	exmo.init()
+	tgBot.init()
 }
 
 func main() {
@@ -50,32 +48,6 @@ func main() {
 	}
 
 	select {}
-
-}
-
-func playSound(path string) {
-	f, err := os.Open(fmt.Sprintf("./mp3/%s", path))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	streamer, format, err := mp3.Decode(f)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer streamer.Close()
-
-	sr := format.SampleRate * 2
-	speaker.Init(sr, sr.N(time.Second/10))
-
-	resampled := beep.Resample(4, format.SampleRate, sr, streamer)
-
-	done := make(chan bool)
-	speaker.Play(beep.Seq(resampled, beep.Callback(func() {
-		done <- true
-	})))
-
-	<-done
 }
 
 func getOperationParameter(str string) OperationParameter {

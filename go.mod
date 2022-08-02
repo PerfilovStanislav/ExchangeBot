@@ -6,6 +6,7 @@ require (
 	github.com/faiface/beep v1.1.0
 	github.com/fatih/color v1.13.0
 	github.com/go-co-op/gocron v1.15.0
+	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/jackc/pgx v3.6.2+incompatible
 	github.com/joho/godotenv v1.4.0
 )
