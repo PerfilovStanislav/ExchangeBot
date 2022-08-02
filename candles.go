@@ -7,16 +7,27 @@ import (
 	_ "github.com/jackc/pgx"
 	_ "github.com/jackc/pgx/stdlib"
 	"io/ioutil"
+	"reflect"
 	"time"
 	//_ "github.com/lib/pq"
 )
 
 type Candle struct {
-	O float64
-	C float64
-	H float64
-	L float64
-	T time.Time
+	L   float64
+	O   float64
+	C   float64
+	H   float64
+	LO  float64
+	LC  float64
+	LH  float64
+	OC  float64
+	OH  float64
+	CH  float64
+	LOC float64
+	LOH float64
+	LCH float64
+	OCH float64
+	T   time.Time
 }
 
 type IndicatorType int8
@@ -51,14 +62,24 @@ var AdditionalIndicatorTypes = []IndicatorType{
 type BarType string
 
 const (
+	Low   BarType = "L"
 	Open  BarType = "O"
 	Close BarType = "C"
 	High  BarType = "H"
-	Low   BarType = "L"
+	LO    BarType = "LO"
+	LC    BarType = "LC"
+	LH    BarType = "LH"
+	OC    BarType = "OC"
+	OH    BarType = "OH"
+	CH    BarType = "CH"
+	LOC   BarType = "LOC"
+	LOH   BarType = "LOH"
+	LCH   BarType = "LCH"
+	OCH   BarType = "OCH"
 )
 
-var BarTypes = [4]BarType{
-	Open, Close, High, Low,
+var BarTypes = [14]BarType{
+	Low, Open, Close, High, LO, LC, LH, OC, OH, CH, LOC, LOH, LCH, OCH,
 }
 
 type CandleData struct {
@@ -114,10 +135,6 @@ func (candleData *CandleData) save() {
 	CandleStorage[candleData.FigiInterval] = *candleData
 }
 
-//func (candleData *CandleData) getFigiInterval() string {
-//	return figiInterval(candleData.Figi, candleData.Interval)
-//}
-
 func (candleData *CandleData) len() int {
 	return len(candleData.Time)
 }
@@ -138,19 +155,23 @@ func (candleData *CandleData) upsertCandle(c Candle) bool {
 	l := candleData.index()
 	if l >= 0 && candleData.Time[l].Equal(c.T) {
 		candleData.Time[l] = c.T
-		candleData.Candles["O"][l] = c.O
-		candleData.Candles["C"][l] = c.C
-		candleData.Candles["H"][l] = c.H
-		candleData.Candles["L"][l] = c.L
+		for _, barType := range BarTypes {
+			candleData.Candles[barType][l] = c.getPrice(barType)
+		}
 		return false
 	} else {
 		candleData.Time = append(candleData.Time, c.T)
-		candleData.Candles["O"] = append(candleData.Candles["O"], c.O)
-		candleData.Candles["C"] = append(candleData.Candles["C"], c.C)
-		candleData.Candles["H"] = append(candleData.Candles["H"], c.H)
-		candleData.Candles["L"] = append(candleData.Candles["L"], c.L)
+		for _, barType := range BarTypes {
+			candleData.Candles[barType] = append(candleData.Candles[barType], c.getPrice(barType))
+		}
 		return true
 	}
+}
+
+func (candle Candle) getPrice(barType BarType) float64 {
+	r := reflect.ValueOf(candle)
+	f := reflect.Indirect(r).FieldByName(string(barType))
+	return f.Float()
 }
 
 func (candleData *CandleData) calculateSma(n, i int, barType BarType) float64 {
@@ -291,6 +312,3 @@ func (candleData *CandleData) fillIndicators() {
 func (candleData *CandleData) fillIndicator(l int, ind IndicatorParameter) float64 {
 	return ind.getValue(candleData, l)
 }
-
-//0.15977840686912015
-//0.1614993601201034

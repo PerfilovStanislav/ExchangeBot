@@ -62,7 +62,21 @@ func (exmo *Exmo) downloadHistoryCandles(operation OperationParameter) {
 		}
 		for _, c := range candleHistory.Candles {
 			candleData.upsertCandle(Candle{
-				c.O, c.C, c.H, c.L, time.Unix(c.T/1000, 0),
+				c.L,
+				c.O,
+				c.C,
+				c.H,
+				(c.L + c.O) * 0.5,
+				(c.L + c.C) * 0.5,
+				(c.L + c.H) * 0.5,
+				(c.O + c.C) * 0.5,
+				(c.O + c.H) * 0.5,
+				(c.C + c.H) * 0.5,
+				(c.L + c.O + c.C) / 3.0,
+				(c.L + c.O + c.H) / 3.0,
+				(c.L + c.C + c.H) / 3.0,
+				(c.O + c.C + c.H) / 3.0,
+				time.Unix(c.T/1000, 0),
 			})
 		}
 		fmt.Printf("Кол-во свечей: %d\n", candleData.len())
@@ -159,12 +173,23 @@ func (exmo *Exmo) downloadNewCandle(resolution string, dt int64, operation Opera
 	candleData := operation.getCandleData()
 	c := candleHistory.Candles[0]
 	candleData.upsertCandle(Candle{
-		c.O, c.C, c.H, c.L, time.Unix(c.T/1000, 0),
+		c.L,
+		c.O,
+		c.C,
+		c.H,
+		(c.L + c.O) * 0.5,
+		(c.L + c.C) * 0.5,
+		(c.L + c.H) * 0.5,
+		(c.O + c.C) * 0.5,
+		(c.O + c.H) * 0.5,
+		(c.C + c.H) * 0.5,
+		(c.L + c.O + c.C) / 3.0,
+		(c.L + c.O + c.H) / 3.0,
+		(c.L + c.C + c.H) / 3.0,
+		(c.O + c.C + c.H) / 3.0,
+		time.Unix(c.T/1000, 0),
 	})
 
-	//index := candleData.index()
-	//candleData.fillIndicator(index, operation.Ind1)
-	//candleData.fillIndicator(index, operation.Ind2)
 	candleData.save()
 }
 
