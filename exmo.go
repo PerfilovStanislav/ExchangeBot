@@ -32,18 +32,15 @@ func (exmo *Exmo) init() {
 	exmo.apiGetUserInfo()
 }
 
-func (exmo *Exmo) asyncDownloadHistoryCandles(operations []OperationParameter) {
-	parallel(0, len(operations), func(ys <-chan int) {
-		for y := range ys {
-			exmo.downloadHistoryCandles(operations[y])
-		}
-	})
+func (exmo *Exmo) DownloadHistoryCandlesForOperations(operations []OperationParameter) {
+	for _, operation := range operations {
+		candleData := operation.getCandleData()
+		candleData.Candles = make(map[BarType][]float64)
+		exmo.downloadHistoryCandles(candleData)
+	}
 }
 
-func (exmo *Exmo) downloadHistoryCandles(operation OperationParameter) {
-	candleData := operation.getCandleData()
-	candleData.Candles = make(map[BarType][]float64)
-
+func (exmo *Exmo) downloadHistoryCandles(candleData *CandleData) {
 	endDate := time.Now().Unix()
 	startDate := time.Now().AddDate(0, -2, 0).Unix()
 
@@ -78,6 +75,12 @@ func (exmo *Exmo) downloadHistoryCandles(operation OperationParameter) {
 				(c.O + c.C + c.H) / 3.0,
 				time.Unix(c.T/1000, 0),
 			})
+			fmt.Printf("%s - %s +%d\n",
+				time.Unix(from, 0).Format("02.01.06 15"),
+				time.Unix(to, 0).Format("02.01.06 15"),
+				len(candleHistory.Candles),
+			)
+			time.Sleep(time.Millisecond * time.Duration(50))
 		}
 		fmt.Printf("Кол-во свечей: %d\n", candleData.len())
 	}

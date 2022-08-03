@@ -23,8 +23,10 @@ var scheduler *gocron.Scheduler
 func init() {
 	_ = godotenv.Load()
 	rand.Seed(time.Now().UnixNano())
+
 	exmo.init()
 	color.HiYellow("Balance %+v", exmo.Balance)
+
 	tgBot.init()
 }
 
@@ -45,7 +47,7 @@ func main() {
 			operation := getOperationParameter(param)
 			operations = append(operations, operation)
 		}
-		exmo.asyncDownloadHistoryCandles(getUniqueOperations(operations))
+		exmo.DownloadHistoryCandlesForOperations(getUniqueOperations(operations))
 		exmo.listenCandles(operations)
 	}
 
