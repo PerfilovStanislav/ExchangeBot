@@ -6,20 +6,20 @@ import (
 	"os"
 )
 
-const TgChannel = -1001704285488
-
 var tgBot TgBot
 
 type TgBot struct {
 	*tg.BotAPI
+	Channel int64
 }
 
 func (bot *TgBot) init() {
 	bot.BotAPI, _ = tg.NewBotAPI(os.Getenv("tg.token"))
+	bot.Channel = s2i(os.Getenv("tg.channel"))
 }
 
 func (bot *TgBot) newOrderOpened(pair string, price, quantity, stopLossPrice float64) {
-	msg := tg.NewMessage(TgChannel, fmt.Sprintf("%s%s%s%s%s",
+	msg := tg.NewMessage(tgBot.Channel, fmt.Sprintf("%s%s%s%s%s",
 		listFormat("Операция", "BUY"),
 		listFormat("Пара", pair),
 		listFormat("Цена", f2s(price)),
@@ -33,7 +33,7 @@ func (bot *TgBot) newOrderOpened(pair string, price, quantity, stopLossPrice flo
 }
 
 func (bot *TgBot) orderClosed(pair string, price, quantity float64) {
-	msg := tg.NewMessage(TgChannel, fmt.Sprintf("%s%s%s%s",
+	msg := tg.NewMessage(bot.Channel, fmt.Sprintf("%s%s%s%s",
 		listFormat("Операция", "SELL"),
 		listFormat("Пара", pair),
 		listFormat("Цена", f2s(price)),

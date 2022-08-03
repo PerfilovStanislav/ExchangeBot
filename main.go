@@ -165,6 +165,11 @@ func i2s(i int64) string {
 	return strconv.FormatInt(i, 10)
 }
 
+func s2i(s string) int64 {
+	n, _ := strconv.ParseInt(s, 10, 64)
+	return n
+}
+
 func getCurrencies(pair string) (Currency, Currency) {
 	split := strings.Split(pair, "_")
 	return Currency(split[0]), Currency(split[1])

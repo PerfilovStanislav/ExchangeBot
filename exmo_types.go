@@ -30,4 +30,5 @@ const (
 	USD  Currency = "USD"
 	USDT Currency = "USDT"
 	RUB  Currency = "RUB"
+	ETC  Currency = "ETC"
 )
