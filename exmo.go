@@ -50,7 +50,7 @@ func (exmo *Exmo) downloadHistoryCandles(candleData *CandleData) {
 		from := startDate
 		to := startDate + 125*3600
 
-		candleHistory := exmo.apiGetCandles(figi, "60", from, to)
+		candleHistory := exmo.apiGetCandles(figi, resolution, from, to)
 
 		startDate = to
 
@@ -75,15 +75,15 @@ func (exmo *Exmo) downloadHistoryCandles(candleData *CandleData) {
 				(c.O + c.C + c.H) / 3.0,
 				time.Unix(c.T/1000, 0),
 			})
-			fmt.Printf("%s - %s +%d\n",
-				time.Unix(from, 0).Format("02.01.06 15"),
-				time.Unix(to, 0).Format("02.01.06 15"),
-				len(candleHistory.Candles),
-			)
-			time.Sleep(time.Millisecond * time.Duration(50))
 		}
-		fmt.Printf("Кол-во свечей: %d\n", candleData.len())
+		fmt.Printf("%s - %s +%d\n",
+			time.Unix(from, 0).Format("02.01.06 15"),
+			time.Unix(to, 0).Format("02.01.06 15"),
+			len(candleHistory.Candles),
+		)
+		time.Sleep(time.Millisecond * time.Duration(50))
 	}
+	fmt.Printf("Кол-во свечей: %d\n", candleData.len())
 
 	candleData.fillIndicators()
 	candleData.save()
