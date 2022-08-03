@@ -110,6 +110,7 @@ func (exmo *Exmo) checkForOpen(operations []OperationParameter) {
 		v2 := candleData.fillIndicator(index, operation.Ind2)
 		candleData.save()
 
+		color.HiBlue("%s\n", time.Now().Format("02.01.06 15:04:05"))
 		percentsForOpen := v1 * 10000 / v2 / float64(10000+operation.Op)
 		if percentsForOpen >= 1.0 {
 			pair := operation.getPairName()
@@ -138,7 +139,7 @@ func (exmo *Exmo) checkForOpen(operations []OperationParameter) {
 			}
 			fmt.Printf("OpenedOrder:%+v\nOrder:%+v\n\n", exmo.OpenedOrder, buyOrder)
 		} else {
-			fmt.Printf("time:%s percents:%f operation: %+v v1:%f v2:%f\n", time.Now().Format("02.01 15"), percentsForOpen, operation, v1, v2)
+			fmt.Printf("%.4f operation:%+v v1:%f v2:%f\n", percentsForOpen, operation, v1, v2)
 		}
 	}
 }
