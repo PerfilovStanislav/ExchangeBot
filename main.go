@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"github.com/fatih/color"
 	"github.com/go-co-op/gocron"
 	"github.com/joho/godotenv"
 	"io/ioutil"
@@ -23,6 +24,7 @@ func init() {
 	_ = godotenv.Load()
 	rand.Seed(time.Now().UnixNano())
 	exmo.init()
+	color.HiYellow("Balance %+v", exmo.Balance)
 	tgBot.init()
 }
 
