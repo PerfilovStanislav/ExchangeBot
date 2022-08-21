@@ -71,7 +71,7 @@ func (exmo *Exmo) downloadHistoryCandles(candleData *CandleData) {
 	candleData.save()
 }
 
-func (exmo *Exmo) downloadNewCandleForOperations(strategies []Strategy) {
+func (exmo *Exmo) downloadNewCandleForStrategies(strategies []Strategy) {
 	dt := ((time.Now().Unix() / 3600) - 1) * 3600
 
 	for _, strategy := range strategies {
@@ -104,7 +104,7 @@ func (exmo *Exmo) listenCandles(strategies []Strategy) {
 }
 
 func (exmo *Exmo) checkOperation(strategies []Strategy) {
-	exmo.downloadNewCandleForOperations(getUniqueStrategies(strategies))
+	exmo.downloadNewCandleForStrategies(getUniqueStrategies(strategies))
 	if exmo.isOrderOpened() {
 		exmo.checkForClose()
 	} else {
