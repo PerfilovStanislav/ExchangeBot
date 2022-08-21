@@ -19,14 +19,16 @@ func (bot *TgBot) init() {
 }
 
 func (bot *TgBot) newOrderOpened(pair string, price, quantity, stopLossPrice float64) {
-	msg := tg.NewMessage(tgBot.Channel, fmt.Sprintf("%s%s%s%s%s",
-		listFormat("Операция", "BUY"),
-		listFormat("Пара", pair),
-		listFormat("Цена", f2s(price)),
-		listFormat("Кол-во", f2s(quantity)),
-		listFormat("SL", f2s(stopLossPrice)),
-	))
-	msg.ParseMode = tg.ModeHTML
+	//msg := tg.NewMessage(tgBot.Channel, fmt.Sprintf("%s%s%s%s%s",
+	//	listFormat("Операция", "BUY"),
+	//	listFormat("Пара", pair),
+	//	listFormat("Цена", f2s(price)),
+	//	listFormat("Кол-во", f2s(quantity)),
+	//	listFormat("SL", f2s(stopLossPrice)),
+	//))
+	//msg.ParseMode = tg.ModeHTML
+
+	msg := tg.NewPhoto(tgBot.Channel, tg.FilePath("verticalBarChart.png"))
 
 	message, err := tgBot.Send(msg)
 	fmt.Println(message, err)

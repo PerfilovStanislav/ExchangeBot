@@ -1,20 +1,18 @@
 package main
 
 import (
-	"bytes"
-	"encoding/gob"
-	"fmt"
-	"github.com/fatih/color"
+	fcolor "github.com/fatih/color"
 	"github.com/go-co-op/gocron"
 	"github.com/joho/godotenv"
-	"io/ioutil"
+	"gonum.org/v1/plot"
+	"gonum.org/v1/plot/plotter"
+	"gonum.org/v1/plot/vg"
+	"gonum.org/v1/plot/vg/draw"
+	"image/color"
 	"log"
 	"math/rand"
 	"os"
-	"runtime"
-	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -25,188 +23,120 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 
 	exmo.init()
-	color.HiYellow("Balance %+v", exmo.Balance)
+	fcolor.HiYellow("Balance %+v", exmo.Balance)
 
 	tgBot.init()
+	CandleStorage = make(map[string]CandleData)
+	//drawBars()
 }
 
 func main() {
-	CandleStorage = make(map[string]CandleData)
-
 	envParams := os.Getenv("params")
 	if envParams != "" {
 		params := strings.Split(envParams, "}{")
 		params[0] = params[0][1:]
 		params[len(params)-1] = params[len(params)-1][:len(params[len(params)-1])-1]
-		var operations []OperationParameter
+		var strategies []Strategy
 
 		scheduler = gocron.NewScheduler(time.UTC)
 		scheduler.StartAsync()
 
 		for _, param := range params {
-			operation := getOperationParameter(param)
-			operations = append(operations, operation)
+			operation := getStrategy(param)
+			strategies = append(strategies, operation)
 		}
-		exmo.DownloadHistoryCandlesForOperations(getUniqueOperations(operations))
-		exmo.listenCandles(operations)
+		exmo.downloadHistoryCandlesForStrategies(getUniqueStrategies(strategies))
+		exmo.listenCandles(strategies)
+
 	}
 
 	select {}
 }
 
-func getOperationParameter(str string) OperationParameter {
-	var operationParameter OperationParameter
+func drawBars() {
+	candleData := getCandleData("ETC_USDT.hour")
+	candleData.restore()
+	//exmo.downloadHistoryCandles(candleData)
+	//candleData.backup()
+	c := candleData.Candles
 
-	params := strings.Split(str, "|")
-	figis := strings.Split(params[0], " ")
-	operationParameter.FigiInterval = figis[0] + ".hour"
-	operationParameter.Op = toInt(figis[1])
-	operationParameter.Cl = toInt(figis[2])
+	red := color.NRGBA{R: 255, G: 108, B: 101, A: 255}
+	green := color.NRGBA{R: 109, G: 195, B: 88, A: 255}
+	gray := color.NRGBA{R: 22, G: 26, B: 37, A: 255}
+	blue := color.NRGBA{G: 160, B: 240, A: 255}
+	p := plot.New()
+	p.BackgroundColor = gray
+	p.X.Max = 62
+	p.X.Min = -1
+	p.X.Tick.Color = blue
+	p.X.Tick.Label.Color = blue
+	p.X.Tick.Label.Font.Size = 16
 
-	operationParameter.Ind1 = getIndicatorParameter(params[1])
-	operationParameter.Ind2 = getIndicatorParameter(params[2])
+	p.Y.Tick.Color = blue
+	p.Y.Tick.Label.Color = blue
+	p.Y.Tick.Label.Font.Size = 16
 
-	return operationParameter
-}
-
-func getIndicatorParameter(str string) IndicatorParameter {
-	var indicatorParameter IndicatorParameter
-
-	split := strings.Split(str, " ")
-	indicatorParameter.IndicatorType = IndicatorType(toInt(split[0]))
-	indicatorParameter.BarType = BarType(split[1])
-	indicatorParameter.Coef = toInt(split[2])
-
-	return indicatorParameter
-}
-
-func toInt(str string) int {
-	i, err := strconv.Atoi(str)
-	if err != nil {
-		fmt.Printf("%+v", err)
-		return -100
+	w := vg.Points(10)
+	tw := vg.Points(1)
+	whiskerStyle := draw.LineStyle{
+		Width:  vg.Points(2),
+		Dashes: []vg.Length{},
 	}
-	return i
-}
-
-func getFigiAndInterval(str string) (string, string) {
-	param := strings.Split(str, ".")
-	return param[0], "hour"
-}
-
-func EncodeToBytes(p interface{}) []byte {
-	buf := bytes.Buffer{}
-	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(p)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("uncompressed size (bytes): ", len(buf.Bytes()))
-	return buf.Bytes()
-}
-
-func fileExists(filename string) bool {
-	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return !info.IsDir()
-}
-
-func ReadFromFile(path string) []byte {
-	f, err := os.Open(path)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	data, err := ioutil.ReadAll(f)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	return data
-}
-
-// parallel processes the data in separate goroutines.
-func parallel(start, stop int, fn func(<-chan int)) {
-	count := stop - start
-	if count < 1 {
-		return
-	}
-
-	procs := runtime.GOMAXPROCS(0)
-	if procs > count {
-		procs = count
-	}
-
-	c := make(chan int, count)
-	for i := start; i < stop; i++ {
-		c <- i
-	}
-	close(c)
-
-	var wg sync.WaitGroup
-	for i := 0; i < procs; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			fn(c)
-		}()
-	}
-	wg.Wait()
-}
-
-func f2s(x float64) string {
-	return fmt.Sprintf("%v", x)
-}
-
-func s2f(s string) float64 {
-	f, _ := strconv.ParseFloat(s, 64)
-	return f
-}
-
-func i2s(i int64) string {
-	return strconv.FormatInt(i, 10)
-}
-
-func s2i(s string) int64 {
-	n, _ := strconv.ParseInt(s, 10, 64)
-	return n
-}
-
-func getCurrencies(pair string) (Currency, Currency) {
-	split := strings.Split(pair, "_")
-	return Currency(split[0]), Currency(split[1])
-}
-
-func getLeftCurrency(pair string) Currency {
-	currency, _ := getCurrencies(pair)
-	return currency
-}
-
-func getRightCurrency(pair string) Currency {
-	_, currency := getCurrencies(pair)
-	return currency
-}
-
-func getUniqueOperations(operations []OperationParameter) []OperationParameter {
-	var uniqueOperations []OperationParameter
-	var symbols []string
-	for _, operation := range operations {
-		pair := operation.getPairName()
-		if sliceIndex(symbols, pair) == -1 {
-			symbols = append(symbols, pair)
-			uniqueOperations = append(uniqueOperations, operation)
+	const cnt = 60
+	var ind1 []plotter.XY
+	startI := candleData.index() - cnt
+	var xTicks []plot.Tick
+	for i := 0; i < cnt; i++ {
+		lo := c[L][startI+i]
+		op := c[O][startI+i]
+		cl := c[C][startI+i]
+		hi := c[H][startI+i]
+		bar, _ := plotter.NewBoxPlot(w, float64(i), plotter.Values{
+			lo, op, op, op, cl, hi,
+		})
+		bar.AdjLow = lo
+		bar.AdjHigh = hi
+		bar.CapWidth = tw
+		bar.WhiskerStyle = whiskerStyle
+		bar.Outside = nil
+		if cl >= op {
+			bar.FillColor = green
+			bar.WhiskerStyle.Color = green
+			bar.BoxStyle.Color = green
+			bar.MedianStyle.Color = green
+		} else {
+			bar.FillColor = red
+			bar.WhiskerStyle.Color = red
+			bar.BoxStyle.Color = red
+			bar.MedianStyle.Color = red
 		}
-	}
-	return uniqueOperations
-}
-
-func sliceIndex[E comparable](s []E, v E) int {
-	for i, vs := range s {
-		if v == vs {
-			return i
+		ind1 = append(ind1, plotter.XY{X: float64(i), Y: (lo + hi) * .5})
+		if (i+1)%4 == 0 {
+			xTicks = append(xTicks, plot.Tick{Value: float64(i), Label: candleData.Time[startI+i].Format("15:04")})
 		}
+		p.Add(bar)
 	}
-	return -1
+	p.X.Tick.Marker = plot.ConstantTicks(xTicks)
+
+	line := &plotter.Line{
+		XYs: ind1,
+		LineStyle: draw.LineStyle{
+			Color:    color.RGBA{46, 113, 173, 255},
+			Width:    vg.Points(2),
+			Dashes:   []vg.Length{},
+			DashOffs: 0,
+		},
+	}
+	p.Y.Label.TextStyle.Font.Size = 40
+	p.X.Label.TextStyle.Font.Size = 40
+	p.Add(line, plotter.NewGrid())
+
+	err := p.Save(1200, 600, "verticalBarChart.png")
+	err = p.Save(200, 600, "verticalBarChart.pdf")
+
+	tgBot.newOrderOpened("TEST", 10, 20, 30)
+
+	if err != nil {
+		log.Panic(err)
+	}
 }
