@@ -113,6 +113,7 @@ func (exmo *Exmo) checkOperation(strategies []Strategy) {
 }
 
 func (exmo *Exmo) checkForOpen(strategies []Strategy) {
+	color.HiBlue("%s\n", time.Now().Format("02.01.06 15:04:05"))
 	exmo.apiGetUserInfo()
 
 	for _, strategy := range strategies {
@@ -123,7 +124,6 @@ func (exmo *Exmo) checkForOpen(strategies []Strategy) {
 		v2 := candleData.fillIndicator(index, strategy.Ind2)
 		candleData.save()
 
-		color.HiBlue("%s\n", time.Now().Format("02.01.06 15:04:05"))
 		percentsForOpen := v1 * 10000 / v2 / float64(10000+strategy.Op)
 		if percentsForOpen >= 1.0 {
 			pair := strategy.Pair
