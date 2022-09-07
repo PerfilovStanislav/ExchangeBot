@@ -15,12 +15,13 @@ type TestResponse struct {
 
 func (exmo *Exmo) test() {
 	params := ApiParams{
-		//"pair":   "ALGO_USDT",
+		//"date": "1662336000",
 		//"limit":  "100",
 		//"offset": "0",
+		"order_id": "30746429423",
 	}
 
-	bts, err := exmo.apiQuery("pair_settings", params)
+	bts, err := exmo.apiQuery("order_trades", params)
 
 	var response TestResponse
 	err = json.Unmarshal(bts, &response)

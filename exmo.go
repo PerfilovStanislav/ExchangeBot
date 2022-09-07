@@ -130,7 +130,7 @@ func (exmo *Exmo) checkForOpen(strategies []Strategy) {
 			money := exmo.getCurrencyBalance(getRightCurrency(pair)) * exmo.AvailableDeposit
 			buyOrder := exmo.apiBuy(pair, money)
 			if buyOrder.isSuccess() {
-				candleOpenPrice := exmo.getCurrentCandle(pair).O
+				candleOpenPrice := candleData.lastCandleValue(O)
 				exmo.OpenedOrder = OpenedOrder{
 					Strategy:    strategy,
 					OpenedPrice: candleOpenPrice,
@@ -140,6 +140,7 @@ func (exmo *Exmo) checkForOpen(strategies []Strategy) {
 				// выставляем стоп лосс
 				quantity := exmo.getCurrencyBalance(getLeftCurrency(pair))
 				StopLossPrice := candleOpenPrice * 0.8
+				time.Sleep(time.Millisecond * time.Duration(50))
 				stopLossOrder := exmo.apiSetStopLoss(pair, quantity, StopLossPrice)
 				if stopLossOrder.isSuccess() {
 					exmo.StopLossOrderId = stopLossOrder.ParentOrderID
@@ -157,15 +158,10 @@ func (exmo *Exmo) checkForOpen(strategies []Strategy) {
 	}
 }
 
-func (exmo *Exmo) getCurrentCandle(pair string) ExmoCandle {
-	dt := (time.Now().Unix() / 3600) * 3600
-	return exmo.apiGetCandles(pair, resolution, dt, dt).Candles[0]
-}
-
 func (exmo *Exmo) checkForClose() {
 	openedOrder := exmo.OpenedOrder
 	pair := openedOrder.Pair
-	o := exmo.getCurrentCandle(pair).O
+	o := getCandleData(pair).lastCandleValue(O)
 	percentsToClose := o * 10000 / openedOrder.OpenedPrice / float64(10000+openedOrder.Cl)
 	fmt.Printf("Percents to close: %f", percentsToClose)
 	if percentsToClose >= 1.0 {
@@ -174,6 +170,7 @@ func (exmo *Exmo) checkForClose() {
 		order := exmo.apiClose(pair, quantity)
 
 		if order.isSuccess() {
+			time.Sleep(time.Millisecond * time.Duration(50))
 			exmo.apiCancelStopLoss(exmo.StopLossOrderId)
 			exmo.OpenedOrder = OpenedOrder{}
 			exmo.StopLossOrderId = 0
