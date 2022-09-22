@@ -16,30 +16,27 @@ type TgBot struct {
 func (bot *TgBot) init() {
 	bot.BotAPI, _ = tg.NewBotAPI(os.Getenv("tg.token"))
 	bot.Channel = s2i(os.Getenv("tg.channel"))
+	bot.Debug = false
 }
 
-func (bot *TgBot) newOrderOpened(pair string, price, quantity, stopLossPrice float64) {
-	msg := tg.NewMessage(tgBot.Channel, fmt.Sprintf("%s%s%s%s%s",
-		listFormat("Операция", "BUY"),
-		listFormat("Пара", pair),
+func (bot *TgBot) newOrderOpened(pair string, price, stopLossPrice float64, screen string) {
+	msg := tg.NewPhoto(tgBot.Channel, tg.FilePath(screen))
+	msg.Caption = fmt.Sprintf("%s%s%s%s",
+		listFormat("Операция", "#BUY"),
+		listFormat("Пара", "#"+pair),
 		listFormat("Цена", f2s(price)),
-		listFormat("Кол-во", f2s(quantity)),
 		listFormat("SL", f2s(stopLossPrice)),
-	))
+	)
 	msg.ParseMode = tg.ModeHTML
 
-	//msg := tg.NewPhoto(tgBot.Channel, tg.FilePath("verticalBarChart.png"))
-
-	message, err := tgBot.Send(msg)
-	fmt.Println(message, err)
+	_, _ = tgBot.Send(msg)
 }
 
-func (bot *TgBot) orderClosed(pair string, price, quantity float64) {
+func (bot *TgBot) orderClosed(pair string, price float64) {
 	msg := tg.NewMessage(bot.Channel, fmt.Sprintf("%s%s%s%s",
-		listFormat("Операция", "SELL"),
-		listFormat("Пара", pair),
+		listFormat("Операция", "#SELL"),
+		listFormat("Пара", "#"+pair),
 		listFormat("Цена", f2s(price)),
-		listFormat("Кол-во", f2s(quantity)),
 	))
 	msg.ParseMode = tg.ModeHTML
 

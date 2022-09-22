@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	fcolor "github.com/fatih/color"
 	"github.com/go-co-op/gocron"
 	"github.com/joho/godotenv"
@@ -27,7 +28,6 @@ func init() {
 
 	tgBot.init()
 	CandleStorage = make(map[string]CandleData)
-	//drawBars()
 }
 
 func main() {
@@ -53,11 +53,7 @@ func main() {
 	select {}
 }
 
-func drawBars() {
-	candleData := getCandleData("ETC_USDT.hour")
-	candleData.restore()
-	//exmo.downloadHistoryCandles(candleData)
-	//candleData.backup()
+func (candleData *CandleData) drawBars(tp, sl float64) string {
 	c := candleData.Candles
 
 	red := color.NRGBA{R: 255, G: 108, B: 101, A: 255}
@@ -83,7 +79,6 @@ func drawBars() {
 		Dashes: []vg.Length{},
 	}
 	const cnt = 60
-	var ind1 []plotter.XY
 	startI := candleData.index() - cnt
 	var xTicks []plot.Tick
 	for i := 0; i < cnt; i++ {
@@ -110,33 +105,38 @@ func drawBars() {
 			bar.BoxStyle.Color = red
 			bar.MedianStyle.Color = red
 		}
-		ind1 = append(ind1, plotter.XY{X: float64(i), Y: (lo + hi) * .5})
 		if (i+1)%4 == 0 {
 			xTicks = append(xTicks, plot.Tick{Value: float64(i), Label: candleData.Time[startI+i].Format("15:04")})
 		}
 		p.Add(bar)
 	}
 	p.X.Tick.Marker = plot.ConstantTicks(xTicks)
-
-	line := &plotter.Line{
-		XYs: ind1,
-		LineStyle: draw.LineStyle{
-			Color:    color.RGBA{46, 113, 173, 255},
-			Width:    vg.Points(2),
-			Dashes:   []vg.Length{},
-			DashOffs: 0,
-		},
-	}
 	p.Y.Label.TextStyle.Font.Size = 40
 	p.X.Label.TextStyle.Font.Size = 40
-	p.Add(line, plotter.NewGrid())
 
-	err := p.Save(1200, 600, "verticalBarChart.png")
-	err = p.Save(200, 600, "verticalBarChart.pdf")
+	lineFn := func(level float64, clr color.RGBA) *plotter.Line {
+		return &plotter.Line{
+			XYs: []plotter.XY{{X: float64(cnt + 2), Y: level}, {X: float64(cnt), Y: level}},
+			LineStyle: draw.LineStyle{
+				Color:    clr,
+				Width:    vg.Points(3),
+				Dashes:   []vg.Length{vg.Points(4)},
+				DashOffs: 0,
+			}}
+	}
 
-	tgBot.newOrderOpened("TEST", 10, 20, 30)
+	tpLevel := lineFn(tp, color.RGBA{R: 96, G: 255, A: 255})
+	slLevel := lineFn(sl, color.RGBA{R: 255, B: 96, A: 255})
+	p.Add(plotter.NewGrid(), tpLevel, slLevel)
+
+	folder := fmt.Sprintf("./screens/%s", time.Now().Format("06/01/02"))
+	_ = os.MkdirAll(folder, 0755)
+	path := fmt.Sprintf("%s/%s_%s_%s.png", folder, candleData.Pair, resolution, time.Now().Format("1504"))
+	err := p.Save(1200, 600, path)
 
 	if err != nil {
 		log.Panic(err)
 	}
+
+	return path
 }
