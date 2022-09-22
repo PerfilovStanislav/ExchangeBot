@@ -138,6 +138,7 @@ func (exmo *Exmo) checkForOpen(strategies []Strategy) {
 				color.HiGreen("SUCCESS order open->")
 
 				// выставляем стоп лосс
+				exmo.apiGetUserInfo()
 				quantity := exmo.getCurrencyBalance(getLeftCurrency(pair))
 				stopLossPrice := candleOpenPrice * 0.8
 				time.Sleep(time.Millisecond * time.Duration(50))
