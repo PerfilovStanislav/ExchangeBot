@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha512"
+	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,6 +31,28 @@ func (exmo *Exmo) init() {
 	exmo.Secret = os.Getenv("exmo.secret")
 	exmo.AvailableDeposit = s2f(os.Getenv("available.deposit"))
 	exmo.apiGetUserInfo()
+	exmo.restore()
+}
+
+func (exmo *Exmo) restore() bool {
+	fileName := exmo.getFileName()
+	if !fileExists(fileName) {
+		return false
+	}
+	dataIn := ReadFromFile(fileName)
+	dec := gob.NewDecoder(bytes.NewReader(dataIn))
+	_ = dec.Decode(&(exmo.OpenedOrder))
+
+	return true
+}
+
+func (exmo *Exmo) backup() {
+	dataOut := EncodeToBytes(exmo.OpenedOrder)
+	_ = ioutil.WriteFile(exmo.getFileName(), dataOut, 0644)
+}
+
+func (exmo *Exmo) getFileName() string {
+	return fmt.Sprintf("exmo.dat")
 }
 
 func (exmo *Exmo) downloadHistoryCandlesForStrategies(strategies []Strategy) {
@@ -63,7 +86,6 @@ func (exmo *Exmo) downloadHistoryCandles(candleData *CandleData) {
 			time.Unix(to, 0).Format("02.01.06 15"),
 			len(candleHistory.Candles),
 		)
-		time.Sleep(time.Millisecond * time.Duration(50))
 	}
 	fmt.Printf("Кол-во свечей: %d\n", candleData.len())
 
@@ -81,14 +103,12 @@ func (exmo *Exmo) downloadNewCandleForStrategies(strategies []Strategy) {
 
 func (exmo *Exmo) downloadNewCandle(resolution string, dt int64, strategy Strategy) {
 	var candleHistory ExmoCandleHistoryResponse
-	for i := 1; i <= 10; i++ {
+	for i := 1; i <= 20; i++ {
 		candleHistory = exmo.apiGetCandles(strategy.Pair, resolution, dt, dt)
 		if !candleHistory.isEmpty() {
 			break
 		} else if i == 20 {
 			return // empty
-		} else {
-			time.Sleep(time.Millisecond * 50)
 		}
 	}
 
@@ -141,13 +161,13 @@ func (exmo *Exmo) checkForOpen(strategies []Strategy) {
 				exmo.apiGetUserInfo()
 				quantity := exmo.getCurrencyBalance(getLeftCurrency(pair))
 				stopLossPrice := candleOpenPrice * 0.8
-				time.Sleep(time.Millisecond * time.Duration(50))
 				stopLossOrder := exmo.apiSetStopLoss(pair, quantity, stopLossPrice)
 				if stopLossOrder.isSuccess() {
 					exmo.StopLossOrderId = stopLossOrder.ParentOrderID
 				} else {
 					color.HiRed("ERROR set stopLoss %+v", stopLossOrder)
 				}
+				exmo.backup()
 
 				takeProfit := candleOpenPrice * float64(10000+strategy.Cl) / 10000
 				screen := candleData.drawBars(takeProfit, stopLossPrice)
@@ -167,17 +187,19 @@ func (exmo *Exmo) checkForClose() {
 	pair := openedOrder.Pair
 	o := getCandleData(pair).lastCandleValue(O)
 	percentsToClose := o * 10000 / openedOrder.OpenedPrice / float64(10000+openedOrder.Cl)
-	fmt.Printf("Percents to close: %f", percentsToClose)
+	fmt.Printf("\nPercents to close: %f", percentsToClose)
 	if percentsToClose >= 1.0 {
 		exmo.apiGetUserInfo()
+
+		exmo.apiCancelStopLoss(exmo.StopLossOrderId)
+		exmo.StopLossOrderId = 0
+
 		quantity := exmo.getCurrencyBalance(getLeftCurrency(pair))
 		order := exmo.apiClose(pair, quantity)
 
 		if order.isSuccess() {
-			time.Sleep(time.Millisecond * time.Duration(50))
-			exmo.apiCancelStopLoss(exmo.StopLossOrderId)
 			exmo.OpenedOrder = OpenedOrder{}
-			exmo.StopLossOrderId = 0
+			exmo.backup()
 			color.HiGreen("SUCCESS order close->")
 			tgBot.orderClosed(pair, o)
 		} else {
@@ -313,6 +335,8 @@ func (exmo *Exmo) getCurrencyBalance(symbol Currency) float64 {
 }
 
 func (exmo *Exmo) apiQuery(method string, params ApiParams) ([]byte, error) {
+	time.Sleep(time.Millisecond * 50)
+
 	postParams := url.Values{}
 	postParams.Add("nonce", nonce())
 	if params != nil {
