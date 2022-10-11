@@ -48,7 +48,7 @@ func (exmo *Exmo) restore() bool {
 
 func (exmo *Exmo) backup() {
 	dataOut := EncodeToBytes(exmo.OpenedOrder)
-	_ = ioutil.WriteFile(exmo.getFileName(), dataOut, 0644)
+	_ = os.WriteFile(exmo.getFileName(), dataOut, 0644)
 }
 
 func (exmo *Exmo) getFileName() string {
@@ -189,11 +189,10 @@ func (exmo *Exmo) checkForClose() {
 	percentsToClose := o * 10000 / openedOrder.OpenedPrice / float64(10000+openedOrder.Cl)
 	fmt.Printf("\nPercents to close: %f", percentsToClose)
 	if percentsToClose >= 1.0 {
-		exmo.apiGetUserInfo()
-
 		exmo.apiCancelStopLoss(exmo.StopLossOrderId)
 		exmo.StopLossOrderId = 0
 
+		exmo.apiGetUserInfo()
 		quantity := exmo.getCurrencyBalance(getLeftCurrency(pair))
 		order := exmo.apiClose(pair, quantity)
 

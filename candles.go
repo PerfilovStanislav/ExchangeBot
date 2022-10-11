@@ -5,7 +5,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"github.com/fatih/color"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"time"
 )
@@ -150,7 +150,7 @@ func (candleData *CandleData) restore() bool {
 
 func (candleData *CandleData) backup() {
 	dataOut := EncodeToBytes(candleData)
-	_ = ioutil.WriteFile(candleData.getFileName(), dataOut, 0644)
+	_ = os.WriteFile(candleData.getFileName(), dataOut, 0644)
 }
 
 func (candleData *CandleData) getFileName() string {
