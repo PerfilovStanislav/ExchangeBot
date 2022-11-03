@@ -33,7 +33,7 @@ func (bot *TgBot) newOrderOpened(pair string, price, stopLossPrice float64, scre
 }
 
 func (bot *TgBot) orderClosed(pair string, price float64) {
-	msg := tg.NewMessage(bot.Channel, fmt.Sprintf("%s%s%s%s",
+	msg := tg.NewMessage(bot.Channel, fmt.Sprintf("%s%s%s",
 		listFormat("Операция", "#SELL"),
 		listFormat("Пара", "#"+pair),
 		listFormat("Цена", f2s(price)),

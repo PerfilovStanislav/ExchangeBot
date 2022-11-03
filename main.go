@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	fcolor "github.com/fatih/color"
 	"github.com/go-co-op/gocron"
 	"github.com/joho/godotenv"
 	"gonum.org/v1/plot"
@@ -19,12 +18,26 @@ import (
 
 var scheduler *gocron.Scheduler
 
+var exchange string
+
+var apiHandler ApiInterface
+
 func init() {
-	_ = godotenv.Load()
 	rand.Seed(time.Now().UnixNano())
 
-	exmo.init()
-	fcolor.HiYellow("Balance %+v", exmo.Balance)
+	_ = godotenv.Load()
+	exchange = os.Getenv("exchange")
+
+	switch exchange {
+	case "exmo":
+		apiHandler = exmo.init()
+	//case "binance":
+	//	apiHandler = binance.init()
+	default:
+		log.Fatal("NO HANDLER")
+	}
+
+	apiHandler.showBalance()
 
 	tgBot.init()
 	CandleStorage = make(map[string]CandleData)
@@ -45,8 +58,8 @@ func main() {
 			operation := getStrategy(param)
 			strategies = append(strategies, operation)
 		}
-		exmo.downloadHistoryCandlesForStrategies(getUniqueStrategies(strategies))
-		exmo.listenCandles(strategies)
+		apiHandler.downloadHistoryCandlesForStrategies(getUniqueStrategies(strategies))
+		apiHandler.listenCandles(strategies)
 
 	}
 

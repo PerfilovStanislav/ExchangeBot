@@ -28,6 +28,15 @@ type Candle struct {
 	T   time.Time
 }
 
+type CandleData struct {
+	Pair       string
+	Time       []time.Time
+	Candles    map[BarType][]float64
+	Indicators map[IndicatorType]map[int]map[BarType][]float64
+}
+
+var CandleStorage map[string]CandleData
+
 type BarType int8
 
 const (
@@ -46,15 +55,6 @@ const (
 	LCH
 	OCH
 )
-
-type CandleData struct {
-	Pair       string
-	Time       []time.Time
-	Candles    map[BarType][]float64
-	Indicators map[IndicatorType]map[int]map[BarType][]float64
-}
-
-var CandleStorage map[string]CandleData
 
 func (barType BarType) String() string {
 	return map[BarType]string{
@@ -136,6 +136,11 @@ func getCandleData(pair string) *CandleData {
 }
 
 func (candleData *CandleData) restore() bool {
+	_, ok := CandleStorage[candleData.Pair]
+	if ok {
+		return true
+	}
+
 	fileName := candleData.getFileName()
 	if !fileExists(fileName) {
 		return false
@@ -154,7 +159,7 @@ func (candleData *CandleData) backup() {
 }
 
 func (candleData *CandleData) getFileName() string {
-	return fmt.Sprintf("candles_%s_%s.dat", candleData.Pair, resolution)
+	return fmt.Sprintf("%s_candles_%s_%s.dat", exchange, candleData.Pair, resolution)
 }
 
 func (candleData *CandleData) save() {
@@ -339,12 +344,42 @@ func (candleData *CandleData) fillIndicator(l int, ind Indicator) float64 {
 	return ind.getValue(candleData, l)
 }
 
+type StrategyType int8
+
+const (
+	NoStrategyType StrategyType = iota
+	Long
+	Short
+	LongSl
+	ShortSl
+)
+
+func (strategyType StrategyType) String() string {
+	return map[StrategyType]string{
+		Long:    "long",
+		Short:   "short",
+		LongSl:  "long_sl",
+		ShortSl: "short_sl",
+	}[strategyType]
+}
+
+func (strategyType StrategyType) value(s string) StrategyType {
+	return map[string]StrategyType{
+		"long":     Long,
+		"short":    Short,
+		"long_sl":  LongSl,
+		"short_sl": ShortSl,
+	}[s]
+}
+
 type Strategy struct {
 	Pair string
 	Op   int
 	Ind1 Indicator
-	Cl   int
+	Tp   int
 	Ind2 Indicator
+	Sl   int
+	Type StrategyType
 }
 
 type Indicator struct {
@@ -377,19 +412,13 @@ func (indicator Indicator) getValue(data *CandleData, i int) float64 {
 	return indicator.IndicatorType.getFunction(data)(indicator.Coef, i, indicator.BarType)
 }
 
-func showStrategies(strategies []Strategy) string {
-	var str string
-	for _, strategy := range strategies {
-		str += strategy.String()
-	}
-	return str
-}
-
 func (strategy Strategy) String() string {
-	return fmt.Sprintf("{ %s %s %s | %s | %s }",
+	return fmt.Sprintf("{ %s %s %s %s %s | %s | %s }",
 		color.New(color.FgBlue).Sprintf("%s", strategy.Pair),
-		color.New(color.BgHiGreen, color.FgBlack).Sprintf("%3d", strategy.Op),
-		color.New(color.BgHiRed, color.FgBlack).Sprintf("%3d", strategy.Cl),
+		color.New(color.BgYellow, color.FgBlack).Sprintf("%s", strategy.Type),
+		color.New(color.BgHiBlue, color.FgBlack).Sprintf("%3d", strategy.Op),
+		color.New(color.BgHiGreen, color.FgBlack).Sprintf("%3d", strategy.Tp),
+		color.New(color.BgHiRed, color.FgBlack).Sprintf("%4d", strategy.Sl),
 		strategy.Ind1.String(),
 		strategy.Ind2.String(),
 	)

@@ -26,12 +26,18 @@ const resolution = "60"
 
 type ApiParams map[string]string
 
-func (exmo *Exmo) init() {
+func (exmo *Exmo) init() *Exmo {
 	exmo.Key = os.Getenv("exmo.key")
 	exmo.Secret = os.Getenv("exmo.secret")
 	exmo.AvailableDeposit = s2f(os.Getenv("available.deposit"))
 	exmo.apiGetUserInfo()
 	exmo.restore()
+
+	return exmo
+}
+
+func (exmo *Exmo) showBalance() {
+	color.HiYellow("Balance %+v", exmo.Balance)
 }
 
 func (exmo *Exmo) restore() bool {
@@ -59,11 +65,11 @@ func (exmo *Exmo) downloadHistoryCandlesForStrategies(strategies []Strategy) {
 	for _, strategy := range strategies {
 		candleData := strategy.getCandleData()
 		candleData.Candles = make(map[BarType][]float64)
-		exmo.downloadHistoryCandles(candleData)
+		exmo.downloadPairCandles(candleData)
 	}
 }
 
-func (exmo *Exmo) downloadHistoryCandles(candleData *CandleData) {
+func (exmo *Exmo) downloadPairCandles(candleData *CandleData) {
 	endDate := time.Now().Unix()
 	startDate := time.Now().AddDate(0, -2, 0).Unix()
 
@@ -124,6 +130,7 @@ func (exmo *Exmo) listenCandles(strategies []Strategy) {
 }
 
 func (exmo *Exmo) checkOperation(strategies []Strategy) {
+	color.HiBlue("%s\n", time.Now().Format("02.01.06 15:04:05"))
 	exmo.downloadNewCandleForStrategies(getUniqueStrategies(strategies))
 	if exmo.isOrderOpened() {
 		exmo.checkForClose()
@@ -133,7 +140,6 @@ func (exmo *Exmo) checkOperation(strategies []Strategy) {
 }
 
 func (exmo *Exmo) checkForOpen(strategies []Strategy) {
-	color.HiBlue("%s\n", time.Now().Format("02.01.06 15:04:05"))
 	exmo.apiGetUserInfo()
 
 	for _, strategy := range strategies {
@@ -169,7 +175,7 @@ func (exmo *Exmo) checkForOpen(strategies []Strategy) {
 				}
 				exmo.backup()
 
-				takeProfit := candleOpenPrice * float64(10000+strategy.Cl) / 10000
+				takeProfit := candleOpenPrice * float64(10000+strategy.Tp) / 10000
 				screen := candleData.drawBars(takeProfit, stopLossPrice)
 				tgBot.newOrderOpened(pair, candleOpenPrice, stopLossPrice, screen)
 			} else {
@@ -186,7 +192,7 @@ func (exmo *Exmo) checkForClose() {
 	openedOrder := exmo.OpenedOrder
 	pair := openedOrder.Pair
 	o := getCandleData(pair).lastCandleValue(O)
-	percentsToClose := o * 10000 / openedOrder.OpenedPrice / float64(10000+openedOrder.Cl)
+	percentsToClose := o * 10000 / openedOrder.OpenedPrice / float64(10000+openedOrder.Tp)
 	fmt.Printf("\nPercents to close: %f", percentsToClose)
 	if percentsToClose >= 1.0 {
 		exmo.apiCancelStopLoss(exmo.StopLossOrderId)
