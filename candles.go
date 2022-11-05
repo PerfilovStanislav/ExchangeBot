@@ -28,6 +28,10 @@ type Candle struct {
 	T   time.Time
 }
 
+func (candle Candle) isEmpty() bool {
+	return candle.L == 0.0
+}
+
 type CandleData struct {
 	Pair       string
 	Time       []time.Time
