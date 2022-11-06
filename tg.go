@@ -40,8 +40,7 @@ func (bot *TgBot) orderClosed(pair string, price float64) {
 	))
 	msg.ParseMode = tg.ModeHTML
 
-	message, err := tgBot.Send(msg)
-	fmt.Println(message, err)
+	_, _ = tgBot.Send(msg)
 }
 
 func listFormat(key, value string) string {
