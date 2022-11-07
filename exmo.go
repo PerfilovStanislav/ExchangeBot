@@ -160,7 +160,7 @@ func (exmo *Exmo) checkForOpen(strategies []Strategy) {
 			money := exmo.getCurrencyBalance(getRightCurrency(pair)) * exmo.AvailableDeposit
 			buyOrder := exmo.apiBuy(pair, money)
 			if buyOrder.isSuccess() {
-				exmo.OpenedOrder = OpenedOrder{
+				openedOrder := OpenedOrder{
 					Strategy:    strategy,
 					OpenedPrice: candle.O,
 				}
@@ -172,15 +172,17 @@ func (exmo *Exmo) checkForOpen(strategies []Strategy) {
 				stopLossPrice := candle.O * 0.8
 				stopLossOrder := exmo.apiSetStopLoss(pair, quantity, stopLossPrice)
 				if stopLossOrder.isSuccess() {
-					exmo.OpenedOrder.StopLossOrderId = stopLossOrder.ParentOrderID
+					openedOrder.StopLossOrderId = stopLossOrder.ParentOrderID
 				} else {
 					color.HiRed("ERROR set stopLoss %+v", stopLossOrder)
 				}
-				exmo.backup()
 
 				takeProfit := candle.O * float64(10000+strategy.Tp) / 10000
 				screen := candleData.drawBars(takeProfit, stopLossPrice)
-				tgBot.newOrderOpened(pair, candle.O, stopLossPrice, screen)
+				openedOrder.ReplyToMessageID = tgBot.newOrderOpened(pair, candle.O, stopLossPrice, screen)
+
+				exmo.OpenedOrder = openedOrder
+				exmo.backup()
 			} else {
 				color.HiRed("ERROR order open->")
 			}
@@ -213,10 +215,10 @@ func (exmo *Exmo) checkForClose() {
 		order := exmo.apiClose(pair, quantity)
 
 		if order.isSuccess() {
+			color.HiGreen("SUCCESS order close->")
+			tgBot.orderClosed(pair, candle.O, exmo.OpenedOrder.ReplyToMessageID)
 			exmo.OpenedOrder = OpenedOrder{}
 			exmo.backup()
-			color.HiGreen("SUCCESS order close->")
-			tgBot.orderClosed(pair, candle.O)
 		} else {
 			color.HiRed("ERROR order close->")
 		}

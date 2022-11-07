@@ -19,7 +19,7 @@ func (bot *TgBot) init() {
 	bot.Debug = false
 }
 
-func (bot *TgBot) newOrderOpened(pair string, price, stopLossPrice float64, screen string) {
+func (bot *TgBot) newOrderOpened(pair string, price, stopLossPrice float64, screen string) int {
 	msg := tg.NewPhoto(tgBot.Channel, tg.FilePath(screen))
 	msg.Caption = fmt.Sprintf("%s%s%s%s",
 		listFormat("Операция", "#BUY"),
@@ -28,17 +28,19 @@ func (bot *TgBot) newOrderOpened(pair string, price, stopLossPrice float64, scre
 		listFormat("SL", f2s(stopLossPrice)),
 	)
 	msg.ParseMode = tg.ModeHTML
+	result, _ := tgBot.Send(msg)
 
-	_, _ = tgBot.Send(msg)
+	return result.MessageID
 }
 
-func (bot *TgBot) orderClosed(pair string, price float64) {
+func (bot *TgBot) orderClosed(pair string, price float64, replyMessageId int) {
 	msg := tg.NewMessage(bot.Channel, fmt.Sprintf("%s%s%s",
-		listFormat("Операция", "#SELL"),
+		listFormat("Операция", "#CLOSE"),
 		listFormat("Пара", "#"+pair),
 		listFormat("Цена", f2s(price)),
 	))
 	msg.ParseMode = tg.ModeHTML
+	msg.ReplyToMessageID = replyMessageId
 
 	_, _ = tgBot.Send(msg)
 }

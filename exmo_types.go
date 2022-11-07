@@ -14,8 +14,9 @@ type Exmo struct {
 
 type OpenedOrder struct {
 	Strategy
-	OpenedPrice     float64
-	StopLossOrderId int64
+	OpenedPrice      float64
+	StopLossOrderId  int64
+	ReplyToMessageID int
 }
 
 type Currency string
