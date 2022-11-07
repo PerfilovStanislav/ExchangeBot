@@ -172,7 +172,7 @@ func (exmo *Exmo) checkForOpen(strategies []Strategy) {
 				stopLossPrice := candle.O * 0.8
 				stopLossOrder := exmo.apiSetStopLoss(pair, quantity, stopLossPrice)
 				if stopLossOrder.isSuccess() {
-					exmo.StopLossOrderId = stopLossOrder.ParentOrderID
+					exmo.OpenedOrder.StopLossOrderId = stopLossOrder.ParentOrderID
 				} else {
 					color.HiRed("ERROR set stopLoss %+v", stopLossOrder)
 				}
@@ -194,12 +194,19 @@ func (exmo *Exmo) checkForOpen(strategies []Strategy) {
 func (exmo *Exmo) checkForClose() {
 	openedOrder := exmo.OpenedOrder
 	pair := openedOrder.Pair
-	o := getCandleData(pair).lastCandleValue(O)
-	percentsToClose := o * 10000 / openedOrder.OpenedPrice / float64(10000+openedOrder.Tp)
-	fmt.Printf("\nPercents to close: %f", percentsToClose)
+	candle := exmo.downloadNewCandle(0, pair)
+	if candle.isEmpty() {
+		time.Sleep(time.Second * 30)
+		candle = exmo.downloadNewCandle(0, pair)
+		if candle.isEmpty() {
+			return
+		}
+	}
+	percentsToClose := candle.O * 10000 / openedOrder.OpenedPrice / float64(10000+openedOrder.Tp)
+	fmt.Printf("Percents to close: %f\n", percentsToClose)
 	if percentsToClose >= 1.0 {
-		exmo.apiCancelStopLoss(exmo.StopLossOrderId)
-		exmo.StopLossOrderId = 0
+		exmo.apiCancelStopLoss(exmo.OpenedOrder.StopLossOrderId)
+		exmo.OpenedOrder.StopLossOrderId = 0
 
 		exmo.apiGetUserInfo()
 		quantity := exmo.getCurrencyBalance(getLeftCurrency(pair))
@@ -209,7 +216,7 @@ func (exmo *Exmo) checkForClose() {
 			exmo.OpenedOrder = OpenedOrder{}
 			exmo.backup()
 			color.HiGreen("SUCCESS order close->")
-			tgBot.orderClosed(pair, o)
+			tgBot.orderClosed(pair, candle.O)
 		} else {
 			color.HiRed("ERROR order close->")
 		}

@@ -55,8 +55,8 @@ func main() {
 		scheduler.StartAsync()
 
 		for _, param := range params {
-			operation := getStrategy(param)
-			strategies = append(strategies, operation)
+			strategy := getStrategy(param)
+			strategies = append(strategies, strategy)
 		}
 		apiHandler.downloadHistoryCandlesForStrategies(getUniqueStrategies(strategies))
 		apiHandler.listenCandles(strategies)
@@ -92,7 +92,7 @@ func (candleData *CandleData) drawBars(tp, sl float64) string {
 		Dashes: []vg.Length{},
 	}
 	const cnt = 60
-	startI := candleData.index() - cnt
+	startI := candleData.len() - cnt
 	var xTicks []plot.Tick
 	for i := 0; i < cnt; i++ {
 		lo := c[L][startI+i]

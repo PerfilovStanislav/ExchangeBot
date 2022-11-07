@@ -1,9 +1,7 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
 )
 
 type TestResponse struct {
@@ -13,37 +11,18 @@ type TestResponse struct {
 	} `json:"ETC_USD"`
 }
 
-func (exmo *Exmo) test() {
+func (exmo *Exmo) getStopLossOrderId() {
+	params := ApiParams{}
+
+	fmt.Println(exmo.apiQuery("user_open_orders", params))
+}
+
+func (exmo *Exmo) cancelStopLossOrder() {
 	params := ApiParams{
-		//"date": "1662336000",
-		//"limit":  "100",
-		//"offset": "0",
-		"order_id": "30746429423",
+		"parent_order_id": "507081767134440159",
 	}
 
-	bts, err := exmo.apiQuery("order_trades", params)
-
-	var response TestResponse
-	err = json.Unmarshal(bts, &response)
-
-	bidPrice := calc(response.ETC_USD.Bid, 2)
-	bidAmount := calc(response.ETC_USD.Bid, 1)
-
-	askPrice := calc(response.ETC_USD.Ask, 2)
-	askAmount := calc(response.ETC_USD.Ask, 1)
-
-	bidAvg := bidPrice / bidAmount
-	askAvg := askPrice / askAmount
-
-	avg := askAvg / bidAvg
-
-	fmt.Println(bidPrice, bidAmount, askPrice, askAmount, bidAvg, askAvg, avg)
-
-	if err != nil {
-		fmt.Sprintln(err)
-		log.Fatalln(err)
-	}
-	fmt.Println(response)
+	fmt.Println(exmo.apiQuery("stop_market_order_cancel", params))
 }
 
 func calc(rows [][]string, i int64) float64 {

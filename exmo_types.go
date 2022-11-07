@@ -10,12 +10,12 @@ type Exmo struct {
 	AvailableDeposit float64
 	Balance          CurrencyBalanceResponse
 	OpenedOrder      OpenedOrder
-	StopLossOrderId  int64
 }
 
 type OpenedOrder struct {
 	Strategy
-	OpenedPrice float64
+	OpenedPrice     float64
+	StopLossOrderId int64
 }
 
 type Currency string
