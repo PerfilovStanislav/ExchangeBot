@@ -130,6 +130,7 @@ func (exmo *Exmo) listenCandles(strategies []Strategy) {
 }
 
 func (exmo *Exmo) checkOperation(strategies []Strategy) {
+	time.Sleep(time.Second * 1)
 	color.HiBlue("%s\n", time.Now().Format("02.01.06 15:04:05"))
 	exmo.downloadNewCandleForStrategies(getUniqueStrategies(strategies))
 	if exmo.isOrderOpened() {
